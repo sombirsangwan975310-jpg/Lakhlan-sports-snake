@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lakhlan Sports – Snake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0b1d17; --board:#12302a; --gold:#f2c94c; --green:#9be36b; --text:#e8f3ec; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:12px; background:radial-gradient(circle at 50% 0%, #17463a 0%, var(--bg) 65%); color:var(--text);
+    font-family:Orbitron, "Trebuchet MS", sans-serif;
+  }
+  .brand { display:flex; align-items:center; gap:14px; }
+  .brand svg { width:64px; height:64px; filter:drop-shadow(0 0 8px rgba(242,201,76,.45)); }
+  .brand h1 {
+    margin:0; font-family:"Cinzel Decorative", Georgia, serif; font-weight:900; font-size:2.1rem; line-height:1;
+    background:linear-gradient(90deg,#fff3b0,var(--gold),#d98f1f); -webkit-background-clip:text; background-clip:text;
+    color:transparent; letter-spacing:.04em;
+  }
+  .brand small { display:block; font-size:.7rem; letter-spacing:.35em; color:var(--green); margin-top:4px; }
+  .bar { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 20px; font-size:.85rem; padding:0 10px; text-align:center; }
+  .wrap { position:relative; }
+  canvas { display:block; background:var(--board); border-radius:12px; border:3px solid var(--gold); max-width:94vw; height:auto; touch-action:none; box-shadow:0 0 24px rgba(242,201,76,.2); }
+  canvas.shake { animation:shake .35s; }
+  @keyframes shake { 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+  @media (prefers-reduced-motion: reduce) { canvas.shake { animation:none; } }
+  .overlay {
+    position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    background:rgba(5,15,11,.86); border-radius:12px; text-align:center; padding:18px;
+  }
+  .overlay h2 { margin:0; font-family:"Cinzel Decorative", serif; font-size:1.7rem; color:var(--gold); }
+  .overlay p { margin:0; font-size:.85rem; line-height:1.5; }
+  .overlay .small { opacity:.7; font-size:.75rem; }
+  input {
+    font:inherit; font-size:1.05rem; text-align:center; width:80%; padding:10px 12px; border-radius:8px;
+    border:2px solid var(--gold); background:#0b1d17; color:var(--text);
+  }
+  #msg { margin:0; font-size:.85rem; opacity:.9; text-align:center; max-width:420px; min-height:2.4em; padding:0 10px; }
+  .btns { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  button { font:inherit; font-weight:700; font-size:.8rem; padding:8px 16px; border:0; border-radius:8px; background:var(--gold); color:#1b1500; cursor:pointer; }
+  button.alt { background:#244d41; color:var(--text); }
+  button:focus-visible, input:focus-visible { outline:3px solid #fff; outline-offset:2px; }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <svg viewBox="0 0 100 100" aria-label="Lakhlan Sports logo">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset="1" stop-color="#d98f1f"/></linearGradient></defs>
+      <path d="M50 4 L90 20 V52 C90 76 70 92 50 97 C30 92 10 76 10 52 V20 Z" fill="#0f2a22" stroke="url(#g)" stroke-width="4"/>
+      <path d="M32 24 V66 H62" fill="none" stroke="url(#g)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M62 66 C78 66 78 46 62 46 C50 46 50 34 62 34 H70" fill="none" stroke="#9be36b" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="72" cy="34" r="4.5" fill="#9be36b"/><circle cx="73.5" cy="33" r="1.3" fill="#0f2a22"/>
+    </svg>
+    <div><h1>Lakhlan Sports</h1><small>SNAKE ARENA</small></div>
+  </div>
+
+  <div class="bar">
+    <span>Player: <b id="player">–</b></span>
+    <span>Score: <b id="score">0</b></span>
+    <span>Level: <b id="level">1</b></span>
+    <span>Record: <b id="recordText">none yet</b></span>
+  </div>
+
+  <div class="wrap">
+    <canvas id="c" width="400" height="400"></canvas>
+
+    <div class="overlay" id="nameScreen" style="display:flex">
+      <h2>Step into the Arena</h2>
+      <p>Every champion needs a name.<br>What should we call you?</p>
+      <input id="nameInput" type="text" maxlength="16" placeholder="Enter your name" autocomplete="off" aria-label="Your name">
+      <button id="enterBtn">Enter the Arena</button>
+      <p class="small" id="nameErr"></p>
+    </div>
+
+    <div class="overlay" id="pauseScreen">
+      <h2>Paused</h2>
+      <p>Press Space or P to continue.</p>
+    </div>
+
+    <div class="overlay" id="overOverlay">
+      <h2>Game over</h2>
+      <p id="ovReason"></p>
+      <p id="ovRecord"></p>
+      <p class="small">Press Space to play again, or wait a moment.</p>
+    </div>
+  </div>
+
+  <p id="msg"></p>
+  <div class="btns">
+    <button id="pauseBtn" class="alt">Pause</button>
+    <button id="soundBtn" class="alt">Sound: On</button>
+    <button id="restart">Restart</button>
+    <button id="nameBtn" class="alt">Change name</button>
+  </div>
+
+<script>
+/* OPTIONAL world record across all computers: paste a Firebase Realtime Database URL
+   (no trailing slash), e.g. 'https://your-project-default-rtdb.firebaseio.com'
+   and set rules so "record" is readable and writable. Leave '' for this device only. */
+const GLOBAL_DB_URL = '';
+
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+const N = 20, S = canvas.width / N;
+const $ = id => document.getElementById(id);
+const msg = $('msg');
+
+let playerName = '';
+let localRecord = {score:0, name:''};
+let worldRecord = {score:0, name:''};
+try {
+  const r = JSON.parse(localStorage.getItem('lakhlanSnakeRecord') || 'null');
+  if (r && r.score) localRecord = r;
+  $('nameInput').value = localStorage.getItem('lakhlanSnakeName') || '';
+} catch (e) {}
+
+let snake, dir, queue, food, bonus, score, level, timer, running, paused, over;
+let recordAtStart, brokeRecord, restartTimeout;
+
+/* ---- sound ---- */
+let audio = null, soundOn = true;
+function beep(freq, dur, type = 'square', vol = 0.05, slideTo) {
+  if (!soundOn) return;
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime;
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + dur);
+  } catch (e) {}
+}
+$('soundBtn').addEventListener('click', e => {
+  soundOn = !soundOn; e.target.textContent = 'Sound: ' + (soundOn ? 'On' : 'Off'); e.target.blur();
+});
+
+/* ---- records ---- */
+function bestRecord() { return (GLOBAL_DB_URL && worldRecord.score >= localRecord.score) ? worldRecord : localRecord; }
+const scopeLabel = () => (GLOBAL_DB_URL && worldRecord.score >= localRecord.score) ? 'world record' : 'record on this device';
+function showRecord() { const r = bestRecord(); $('recordText').textContent = r.score ? r.score + ' by ' + r.name : 'none yet'; }
+async function loadWorld() {
+  if (!GLOBAL_DB_URL) return;
+  try {
+    const d = await (await fetch(GLOBAL_DB_URL + '/record.json')).json();
+    if (d && d.score) worldRecord = {score:d.score, name:d.name || 'Unknown'};
+    if (!running) recordAtStart = {...bestRecord()};
+    showRecord();
+  } catch (e) {}
+}
+async function saveWorld(rec) {
+  if (!GLOBAL_DB_URL) return;
+  try {
+    await fetch(GLOBAL_DB_URL + '/record.json', {method:'PUT', body:JSON.stringify({...rec, when:Date.now()})});
+    worldRecord = rec; showRecord();
+  } catch (e) {}
+}
+
+/* ---- name entry ---- */
+function enterArena() {
+  const name = $('nameInput').value.trim().replace(/\s+/g, ' ');
+  if (name.length < 2) { $('nameErr').textContent = 'Please type at least 2 characters.'; return; }
+  playerName = name;
+  try { localStorage.setItem('lakhlanSnakeName', name); } catch (e) {}
+  $('player').textContent = name;
+  $('nameScreen').style.display = 'none';
+  reset();
+  msg.textContent = name + ', welcome to the Snake Arena! Press an arrow key, WASD or swipe to begin.';
+}
+$('enterBtn').addEventListener('click', enterArena);
+$('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') enterArena(); });
+$('nameBtn').addEventListener('click', e => {
+  e.target.blur(); stopLoop(); clearTimeout(restartTimeout); running = false; paused = false; playerName = '';
+  $('pauseScreen').style.display = 'none'; $('overOverlay').style.display = 'none';
+  $('nameErr').textContent = ''; $('nameScreen').style.display = 'flex'; $('nameInput').focus(); $('nameInput').select();
+});
+
+/* ---- game ---- */
+const speed = () => Math.max(60, 130 - (level - 1) * 9);
+const stopLoop = () => clearTimeout(timer);
+const schedule = () => { stopLoop(); timer = setTimeout(step, speed()); };
+
+function freeCell() {
+  const taken = new Set(snake.map(s => s.x + ',' + s.y));
+  if (food) taken.add(food.x + ',' + food.y);
+  if (bonus) taken.add(bonus.x + ',' + bonus.y);
+  const free = [];
+  for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) if (!taken.has(x + ',' + y)) free.push({x, y});
+  return free.length ? free[Math.floor(Math.random() * free.length)] : null;
+}
+
+function reset() {
+  stopLoop(); clearTimeout(restartTimeout);
+  snake = [{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+  dir = {x:1,y:0}; queue = []; score = 0; level = 1; bonus = null; food = null;
+  running = false; paused = false; over = false; brokeRecord = false;
+  recordAtStart = {...bestRecord()};
+  $('score').textContent = 0; $('level').textContent = 1;
+  ['overOverlay', 'pauseScreen'].forEach(id => $(id).style.display = 'none');
+  $('pauseBtn').textContent = 'Pause';
+  const r = recordAtStart;
+  msg.textContent = r.score
+    ? 'Record to beat: ' + r.score + ' by ' + r.name + '. Hitting a wall ends the game.'
+    : 'No record yet, so set the first one! Hitting a wall ends the game.';
+  food = freeCell(); showRecord(); draw();
+}
+
+function start() {
+  if (running || paused || over || !playerName) return;
+  running = true; msg.textContent = 'Go, ' + playerName + '! Red food = 1 point, golden star = 3 points.';
+  schedule();
+}
+
+function togglePause() {
+  if (!playerName || over) return;
+  if (running) {
+    running = false; paused = true; stopLoop();
+    $('pauseScreen').style.display = 'flex'; $('pauseBtn').textContent = 'Resume';
+  } else if (paused) {
+    paused = false; running = true; $('pauseScreen').style.display = 'none'; $('pauseBtn').textContent = 'Pause'; schedule();
+  }
+}
+$('pauseBtn').addEventListener('click', e => { togglePause(); e.target.blur(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && running) togglePause(); });
+
+function step() {
+  if (queue.length) dir = queue.shift();
+  if (bonus && --bonus.ttl <= 0) bonus = null;
+  const head = {x:snake[0].x + dir.x, y:snake[0].y + dir.y};
+  const atFood = food && head.x === food.x && head.y === food.y;
+  const atBonus = bonus && head.x === bonus.x && head.y === bonus.y;
+  const grows = atFood || atBonus;
+  // the tail cell frees up this tick unless the snake is growing, so chasing your own tail is legal
+  const body = grows ? snake : snake.slice(0, -1);
+  if (head.x < 0 || head.y < 0 || head.x >= N || head.y >= N) return gameOver('You crashed into the wall!');
+  if (body.some(s => s.x === head.x && s.y === head.y)) return gameOver('You bit your own tail!');
+
+  snake.unshift(head);
+  if (grows) {
+    const pts = atBonus ? 3 : 1;
+    score += pts; $('score').textContent = score;
+    if (atBonus) { bonus = null; beep(660, .25, 'triangle', .07, 1320); } else { beep(520, .1, 'square', .05, 780); }
+    const newLevel = 1 + Math.floor(score / 5);
+    if (newLevel > level) { level = newLevel; $('level').textContent = level; msg.textContent = 'Level ' + level + '! The snake is getting faster.'; beep(880, .3, 'sawtooth', .04, 1320); }
+    if (recordAtStart.score && score > recordAtStart.score && !brokeRecord) {
+      brokeRecord = true;
+      msg.textContent = 'Record broken! The old mark was ' + recordAtStart.score + ' by ' + recordAtStart.name + '. Keep going!';
+    }
+    if (atFood) { food = freeCell(); if (!bonus && Math.random() < 0.25) { const c = freeCell(); if (c) bonus = {...c, ttl:45}; } }
+    if (!food) return gameOver('You filled the entire arena. Perfect game!');
+  } else snake.pop();
+  draw();
+  schedule();
+}
+
+function gameOver(reason) {
+  stopLoop(); running = false; over = true;
+  beep(300, .5, 'sawtooth', .07, 80);
+  canvas.classList.remove('shake'); void canvas.offsetWidth; canvas.classList.add('shake');
+  const prev = recordAtStart;
+  let line;
+  if (score > prev.score) {
+    line = prev.score
+      ? 'The previous record was ' + prev.score + ', set by ' + prev.name + '. You smashed it with ' + score + ', ' + playerName + '. The arena has a new champion!'
+      : 'No one had a record yet, so ' + playerName + ' now holds the first one: ' + score + '. Nice start!';
+    const rec = {score, name:playerName};
+    localRecord = rec;
+    try { localStorage.setItem('lakhlanSnakeRecord', JSON.stringify(rec)); } catch (e) {}
+    if (score > worldRecord.score) saveWorld(rec);
+    showRecord();
+  } else if (prev.score) {
+    line = score === prev.score
+      ? 'You matched the record of ' + prev.score + ' by ' + prev.name + '. One more bite would have beaten it!'
+      : 'You scored ' + score + ' (level ' + level + '). The record is ' + prev.score + ' by ' + prev.name + '. Try again, ' + playerName + '!';
+  } else {
+    line = 'Score: ' + score + '. Eat some food to set the first record!';
+  }
+  $('ovReason').textContent = reason;
+  $('ovRecord').textContent = line;
+  $('overOverlay').style.display = 'flex';
+  draw();
+  restartTimeout = setTimeout(reset, 6000);
+}
+
+/* ---- drawing ---- */
+function drawHead(s) {
+  const cx = s.x*S + S/2, cy = s.y*S + S/2, ang = Math.atan2(dir.y, dir.x);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+  ctx.fillStyle = '#ff4d6d'; ctx.fillRect(S/2 - 2, -1, 7, 2);
+  ctx.fillStyle = '#f2c94c';
+  ctx.beginPath(); ctx.roundRect(-S/2, -S/2 + 0.5, S + 1, S - 1, [4, 10, 10, 4]); ctx.fill();
+  ctx.fillStyle = '#fff';
+  [-4.5, 4.5].forEach(y => { ctx.beginPath(); ctx.arc(3, y, 3, 0, 7); ctx.fill(); });
+  ctx.fillStyle = '#111';
+  [-4.5, 4.5].forEach(y => { ctx.beginPath(); ctx.arc(4, y, 1.5, 0, 7); ctx.fill(); });
+  ctx.restore();
+}
+
+function drawStar(cx, cy, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI/2 + i * Math.PI/5, rad = i % 2 ? r * 0.45 : r;
+    ctx[i ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * rad, cy + Math.sin(a) * rad);
+  }
+  ctx.closePath(); ctx.fill();
+}
+
+function draw() {
+  for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) {
+    ctx.fillStyle = (x + y) % 2 ? '#12302a' : '#143429';
+    ctx.fillRect(x*S, y*S, S, S);
+  }
+  if (!snake) return;
+  if (food) {
+    ctx.fillStyle = '#ff6b5a';
+    ctx.beginPath(); ctx.arc(food.x*S + S/2, food.y*S + S/2 + 1, S/2 - 3, 0, 7); ctx.fill();
+    ctx.fillStyle = '#6fcf4a'; ctx.fillRect(food.x*S + S/2 - 1, food.y*S + 2, 2, 4);
+  }
+  if (bonus && (bonus.ttl > 14 || bonus.ttl % 4 > 1)) {
+    ctx.fillStyle = '#ffd84d'; drawStar(bonus.x*S + S/2, bonus.y*S + S/2, S/2 - 1);
+  }
+  for (let i = snake.length - 1; i > 0; i--) {
+    const s = snake[i];
+    ctx.fillStyle = i % 2 ? '#9be36b' : '#7fcf55';
+    ctx.beginPath(); ctx.roundRect(s.x*S + 1, s.y*S + 1, S - 2, S - 2, 5); ctx.fill();
+  }
+  drawHead(snake[0]);
+}
+
+/* ---- input (two-move queue so quick turns are never dropped) ---- */
+function turn(x, y) {
+  if (!playerName || over || paused) return;
+  const last = queue.length ? queue[queue.length - 1] : dir;
+  if (x === -last.x && y === -last.y) return;
+  if (!(x === last.x && y === last.y) && queue.length < 2) queue.push({x, y});
+  start();
+}
+document.addEventListener('keydown', e => {
+  if (!playerName || e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if (k === ' ' || k === 'p') {
+    e.preventDefault();
+    if (over) reset(); else togglePause();
+    return;
+  }
+  const map = {arrowup:[0,-1], w:[0,-1], arrowdown:[0,1], s:[0,1], arrowleft:[-1,0], a:[-1,0], arrowright:[1,0], d:[1,0]};
+  const m = map[k];
+  if (m) { e.preventDefault(); turn(...m); }
+});
+let tx, ty;
+canvas.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; });
+canvas.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) { if (paused) togglePause(); return; }
+  if (Math.abs(dx) > Math.abs(dy)) turn(dx > 0 ? 1 : -1, 0); else turn(0, dy > 0 ? 1 : -1);
+});
+$('restart').addEventListener('click', e => { if (playerName) reset(); e.target.blur(); });
+
+draw(); showRecord(); loadWorld();
+$('nameInput').focus();
+</script>
+</body>
+</html>
